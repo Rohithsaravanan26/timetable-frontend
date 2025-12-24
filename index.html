@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Timetable Predictor · AI</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Razorpay Checkout -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+  <!-- html2canvas for image export -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #020617;
+      --card-bg: rgba(15,23,42,0.96);
+      --accent: #6366f1;
+      --accent-strong: #a855f7;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: rgba(148,163,184,0.5);
+      --danger: #f97373;
+      --success: #22c55e;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+    }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      background:
+        radial-gradient(circle at top left, #1d273b, transparent 60%),
+        radial-gradient(circle at top right, #1f2937, transparent 55%),
+        linear-gradient(to bottom, #020617, #020617);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(16px);
+      background: linear-gradient(to right, rgba(15,23,42,0.98), rgba(15,23,42,0.92));
+      border-bottom: 1px solid rgba(30,64,175,0.6);
+    }
+
+    .header-left {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.03em;
+    }
+
+    .logo-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 20%, #e5e7eb, #22c55e);
+      box-shadow: 0 0 18px rgba(34,197,94,0.9);
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      max-width: 60%;
+    }
+
+    .user-pill {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: radial-gradient(circle at top left, rgba(15,23,42,0.95), rgba(15,23,42,0.9));
+      white-space: nowrap;
+    }
+
+    .user-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #f97316;
+      box-shadow: 0 0 8px rgba(248,113,113,0.8);
+    }
+
+    .user-dot.online {
+      background: #22c55e;
+      box-shadow: 0 0 12px rgba(34,197,94,0.9);
+    }
+
+    .credits-pill {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px dashed rgba(52,211,153,0.7);
+      background: rgba(6,78,59,0.3);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .credits-pill span.badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(16,185,129,0.2);
+    }
+
+    .theme-toggle {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      font-size: 11px;
+      padding: 4px 8px;
+      background: rgba(15,23,42,0.9);
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    main {
+      flex: 1;
+      padding: 18px;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.05fr);
+      gap: 18px;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 10px;
+      }
+      .header-right {
+        max-width: 100%;
+      }
+    }
+
+    .card {
+      background: radial-gradient(circle at top left, rgba(148,163,184,0.08), transparent 55%), var(--card-bg);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(30,64,175,0.7);
+      padding: 14px 15px 16px;
+      box-shadow:
+        0 18px 45px rgba(15,23,42,0.9),
+        inset 0 0 0.5px rgba(148,163,184,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -60%;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(96,165,250,0.1), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(129,140,248,0.12), transparent 55%);
+      opacity: 0.9;
+      pointer-events: none;
+    }
+
+    .card > * { position: relative; z-index: 1; }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .card-header h2 {
+      margin: 0;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-pill {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: rgba(15,23,42,0.8);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .beta-pill {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(248,250,252,0.2);
+      background: rgba(30,64,175,0.65);
+      color: #e5e7eb;
+    }
+
+    .muted { color: var(--muted); font-size: 12px; }
+    .small { font-size: 11px; color: var(--muted); }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      resize: vertical;
+      padding: 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(30,64,175,0.8);
+      background: rgba(15,23,42,0.96);
+      color: var(--text);
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    textarea::placeholder {
+      color: #6b7280;
+      white-space: pre-line;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 7px 9px;
+      border-radius: 10px;
+      border: 1px solid rgba(31,41,55,0.85);
+      background: rgba(15,23,42,0.95);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    input::placeholder { color: #6b7280; }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: white;
+      font-size: 13px;
+      padding: 7px 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 14px 34px rgba(79,70,229,0.7);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.08s ease;
+      white-space: nowrap;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid rgba(148,163,184,0.7);
+      box-shadow: none;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.06);
+      box-shadow: 0 16px 40px rgba(79,70,229,0.9);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 10px 26px rgba(79,70,229,0.7);
+    }
+
+    .row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .row > .col { flex: 1 1 180px; min-width: 0; }
+
+    .section-label {
+      margin: 6px 0 4px;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.9);
+      margin: 2px 4px 2px 0;
+    }
+
+    .premium-chip {
+      border-color: rgba(245,158,11,0.8);
+      background: linear-gradient(135deg, rgba(30,64,175,0.8), rgba(30,64,175,0.5));
+      color: #fef3c7;
+    }
+
+    .badge-pro {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(251,191,36,0.2);
+      border: 1px solid rgba(252,211,77,0.7);
+      color: #facc15;
+    }
+
+    .courses-list {
+      max-height: 210px;
+      overflow-y: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(31,41,55,0.9);
+      padding: 8px 10px;
+      background: radial-gradient(circle at top, rgba(30,64,175,0.3), rgba(15,23,42,0.97));
+    }
+
+    .course-item {
+      padding: 6px 4px 7px;
+      border-bottom: 1px solid rgba(30,64,175,0.35);
+    }
+
+    .course-item:last-child { border-bottom: none; }
+
+    .course-item label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: rgba(15,23,42,0.9);
+      color: var(--muted);
+      margin: 2px 3px 0 0;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(96,165,250,0.9);
+    }
+
+    .slider-row {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    @media (max-width: 700px) {
+      .slider-row { grid-template-columns: 1fr; }
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .results {
+      max-height: 370px;
+      overflow-y: auto;
+      margin-top: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(31,41,55,0.9);
+      vertical-align: top;
+    }
+
+    th {
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      background: rgba(15,23,42,0.95);
+    }
+
+    .result-card {
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(30,64,175,0.8);
+      padding: 10px 10px 12px;
+      background: radial-gradient(circle at top right, rgba(56,189,248,0.15), rgba(15,23,42,0.98));
+      margin-bottom: 10px;
+    }
+
+    .result-card.best-option {
+      border-color: rgba(34,197,94,0.9);
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.6), 0 16px 42px rgba(22,163,74,0.4);
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .score-pill {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(94,234,212,0.9);
+      background: rgba(15,23,42,0.96);
+      color: #a5f3fc;
+    }
+
+    .conflict {
+      background: rgba(239,68,68,0.18);
+      border-bottom-color: rgba(239,68,68,0.9);
+    }
+
+    .favorites {
+      margin-top: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+      border-radius: 10px;
+      border: 1px dashed rgba(148,163,184,0.6);
+      padding: 6px 8px;
+    }
+
+    .favorite-item {
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px dashed rgba(148,163,184,0.35);
+    }
+
+    .favorite-item:last-child { border-bottom: none; }
+
+    .toast {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(15,23,42,0.98);
+      border: 1px solid rgba(148,163,184,0.7);
+      box-shadow: 0 18px 40px rgba(15,23,42,0.9);
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 40;
+    }
+
+    .toast.success { border-color: rgba(34,197,94,0.9); color: #bbf7d0; }
+    .toast.error { border-color: rgba(239,68,68,0.9); color: #fecaca; }
+
+    .faculty-panel {
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.9);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .faculty-panel h4 { margin: 0 0 4px; font-size: 13px; }
+
+    .stars {
+      color: #fbbf24;
+      font-size: 13px;
+    }
+
+    .breakdown-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      margin: 2px 0;
+    }
+
+    .breakdown-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(30,64,175,0.8);
+      overflow: hidden;
+    }
+
+    .breakdown-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #a3e635);
+    }
+        /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      backdrop-filter: blur(2px);
+    }
+
+    .loading-card {
+      padding: 14px 18px;
+      border-radius: 16px;
+      background: rgba(15,23,42,0.98);
+      border: 1px solid rgba(148,163,184,0.7);
+      box-shadow: 0 18px 40px rgba(15,23,42,0.95);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .loading-spinner {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 3px solid rgba(148,163,184,0.5);
+      border-top-color: #6366f1;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+
+    @media (max-width: 600px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .header-right { justify-content: space-between; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <h1>
+        <span class="logo-dot"></span>
+        Timetable Predictor
+      </h1>
+      <div class="subtitle">AI-powered clash-free timetable · Mon–Sat · 4 slots/day</div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" onclick="toggleTheme()">🌓 Theme</button>
+      <div class="credits-pill">
+        <span>Credits: <span id="credits-count">0</span></span>
+        <span class="badge" id="trial-badge">Trial available</span>
+      </div>
+      <div class="user-pill" id="user-panel" style="display:none;">
+        <span id="user-dot" class="user-dot"></span>
+        <span id="current-user">Not signed in</span>
+        <button class="secondary" style="padding:2px 8px;font-size:10px;" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT SIDE -->
+    <section class="card">
+      <div class="card-header">
+        <h2>
+          <span class="step-pill">Step 1 · Sign in & paste timetable</span>
+        </h2>
+        <span class="beta-pill">BETA · Student Helper</span>
+      </div>
+
+      <!-- Google Login -->
+      <div id="google-login-wrapper" style="margin-bottom: 10px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+        <div id="g_id_onload"
+             data-client_id="938605090290-spglalmtou8cnn22j6j7he1q82foeho8.apps.googleusercontent.com"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-callback="handleGoogleCredential"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="pill"
+             data-theme="outline"
+             data-text="continue_with"
+             data-size="medium"
+             data-logo_alignment="left">
+        </div>
+        <span class="small">Sign in with your Google account to use trial & credits.</span>
+      </div>
+
+      <hr style="border-color: rgba(31,41,55,0.9); margin: 10px 0;" />
+
+      <!-- Timetable input -->
+      <div>
+        <div class="section-label">
+          Timetable text
+          <span class="badge">
+            <span class="badge-dot"></span>
+            Paste pre-enlistment data
+          </span>
+        </div>
+        <textarea id="raw-text" placeholder="Paste the full timetable text here in this format:
+
+Course Title
+
+5G2-1, ENGLISH - Faculty Name
+Date: 05-11-2025 to 27-12-2025
+Monday: 10:00 - 11:00 11:00 - 12:00
+Tuesday: 13:00 - 14:00 14:00 - 15:00
+..."></textarea>
+        <div style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <button onclick="loadCourses()">Scan courses</button>
+          <span class="small">We’ll detect all courses, sections & timings for you.</span>
+        </div>
+      </div>
+
+      <hr style="border-color: rgba(31,41,55,0.9); margin: 10px 0;" />
+
+      <!-- Preferences -->
+      <div>
+        <div class="section-label">
+          Preferences
+          <span class="badge-pro">Pro · Uses credit</span>
+        </div>
+        <p class="small" style="margin:0 0 6px;">
+          First generation is free (trial). Afterwards, each generate uses 1 credit (₹50).
+        </p>
+
+        <div class="row">
+          <div class="chip premium-chip">
+            <input type="checkbox" id="avoidP1" />
+            <span>Avoid 8–10 AM</span>
+          </div>
+          <div class="chip premium-chip">
+            <input type="checkbox" id="avoidP2" />
+            <span>Avoid 10–12 AM</span>
+          </div>
+          <div class="chip premium-chip">
+            <input type="checkbox" id="avoidP3" />
+            <span>Avoid 1–3 PM</span>
+          </div>
+          <div class="chip premium-chip">
+            <input type="checkbox" id="avoidP4" />
+            <span>Avoid 3–5 PM</span>
+          </div>
+          <div class="chip premium-chip">
+            <input type="checkbox" id="prefer-weekend-off" checked />
+            <span>Prefer weekend off</span>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:6px;">
+          <div class="col">
+            <div class="small">Preferred faculty (comma separated)</div>
+            <input id="preferredFaculty" type="text" placeholder="e.g. NIMISHA JOHN, Selvakumar R" />
+          </div>
+          <div class="col">
+            <div class="small">Avoid faculty (comma separated)</div>
+            <input id="avoidFaculty" type="text" placeholder="e.g. Trainer 8, David Raja V" />
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div>
+            <div class="small">
+              Faculty importance: <span id="fac-weight-label">0.6</span>
+            </div>
+            <input type="range" id="fac-weight" min="0" max="1" step="0.1" value="0.6" oninput="updateWeightsLabel()" />
+          </div>
+          <div>
+            <div class="small">
+              Free days importance: <span id="free-weight-label">0.2</span>
+            </div>
+            <input type="range" id="free-weight" min="0" max="1" step="0.1" value="0.2" oninput="updateWeightsLabel()" />
+          </div>
+          <div>
+            <div class="small">
+              Timing importance: <span id="time-weight-label">0.2</span>
+            </div>
+            <input type="range" id="time-weight" min="0" max="1" step="0.1" value="0.2" oninput="updateWeightsLabel()" />
+          </div>
+        </div>
+
+        <div style="margin-top:8px; max-width:160px;">
+          <label class="small">
+            No. of timetable options
+            <input type="number" id="top-k" value="5" min="1" max="20" />
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT SIDE -->
+    <section class="card">
+      <div class="card-header">
+        <h2>
+          <span class="step-pill">Step 2 · Choose courses & generate</span>
+        </h2>
+        <span class="beta-pill">AI-ranked options</span>
+      </div>
+
+      <div class="section-label">
+        Courses detected
+        <span class="badge"><span class="badge-dot"></span>tick the ones you will enroll</span>
+      </div>
+      <div id="courses-container" class="courses-list">
+        <p class="small">
+          Paste your timetable on the left and click <strong>Scan courses</strong> to see them here.
+        </p>
+      </div>
+
+      <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center;">
+        <div class="row">
+          <button onclick="generateTimetables()" id="generate-btn">Generate timetable</button>
+          <button class="secondary" onclick="highlightBestOption()">AI pick best</button>
+        </div>
+        <div class="row">
+          <button class="secondary" onclick="buyCredit()">Buy 1 credit · ₹50</button>
+        </div>
+      </div>
+
+      <hr style="border-color: rgba(31,41,55,0.9); margin: 10px 0;" />
+
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <div class="section-label" style="margin-bottom:4px;">
+          Results
+          <span class="badge"><span class="badge-dot"></span>conflicts marked red</span>
+        </div>
+        <div class="row">
+          <button class="secondary" onclick="downloadPDF()">Download PDF</button>
+          <button class="secondary" onclick="exportImage()">Export image</button>
+        </div>
+      </div>
+
+      <div id="results" class="results"></div>
+
+      <div class="favorites">
+        <div class="small" style="margin-bottom:4px;">⭐ Favourites</div>
+        <div id="favorites-list" class="small"></div>
+      </div>
+
+      <hr style="border-color: rgba(31,41,55,0.9); margin: 10px 0;" />
+
+      <div>
+        <div class="section-label">
+          Faculty reviews
+          <span class="badge">Anonymous ·</span>
+        </div>
+        <p class="small" style="margin:0 0 4px;">Share honest feedback. We never show who posted the review.</p>
+                <div class="row">
+          <div class="col">
+            <input id="review-faculty" type="text" placeholder="Exact faculty name (e.g. NIMISHA JOHN)" />
+          </div>
+          <div style="max-width:110px;" class="col">
+            <input id="review-rating" type="number" min="1" max="5" step="0.5" value="5" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:6px;">
+          <div class="col">
+            <input id="review-course-code" type="text" placeholder="Course code (e.g. 19AI305)" />
+          </div>
+          <div class="col">
+            <input id="review-course-title" type="text" placeholder="Course title (e.g. Advanced C Programming)" />
+          </div>
+        </div>
+        <div style="margin-top:6px;">
+          <textarea id="review-comment" placeholder="Describe the faculty's teaching, pace, support, etc. Avoid sharing personal or sensitive info."></textarea>
+        </div>
+
+        <div style="margin-top:6px;" class="row">
+          <button class="secondary" onclick="submitReview()">Submit review</button>
+          <button class="secondary" onclick="loadFacultySummary()">View faculty insights</button>
+        </div>
+        <div id="review-result" class="small" style="margin-top:4px;"></div>
+
+        <div id="faculty-panel" class="faculty-panel" style="display:none;">
+          <h4 id="faculty-name-title">Faculty insights</h4>
+          <p class="small" id="faculty-summary-text"></p>
+          <div id="faculty-breakdown"></div>
+          <hr style="border-color:rgba(31,41,55,0.8);margin:6px 0;">
+          <div id="faculty-reviews-list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+    <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div id="loading-text">Working...</div>
+    </div>
+  </div>
+
+  <footer style="margin:16px auto 8px; max-width:960px; font-size:11px; color:rgba(148,163,184,0.8); text-align:center;">
+    Developed by <strong>Rohith Saravanan</strong> ·
+    Contact: <a href="mailto:rohithsaravanan86@gmail.com" style="color:inherit; text-decoration:underline;">rohithsaravanan86@gmail.com</a>
+  </footer>
+
+
+  <script>
+    const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const API_BASE = "https://YOUR_BACKEND_URL";
+
+    let accessToken = null;
+    let currentUser = null;
+    let lastResults = [];
+        // Stable per-device ID stored in localStorage
+    function getDeviceId() {
+      let id = localStorage.getItem("tt-device-id");
+      if (!id) {
+        if (crypto && crypto.randomUUID) {
+          id = crypto.randomUUID();
+        } else {
+          id = "dev-" + Math.random().toString(36).slice(2);
+        }
+        localStorage.setItem("tt-device-id", id);
+      }
+      return id;
+    }
+
+    function setLoading(isLoading, message = "Working...") {
+      const overlay = document.getElementById("loading-overlay");
+      const text = document.getElementById("loading-text");
+      if (!overlay || !text) return;
+      text.textContent = message;
+      overlay.style.display = isLoading ? "flex" : "none";
+    }
+
+
+    function showToast(message, type = "success") {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.className = "toast " + type;
+      toast.style.display = "flex";
+      setTimeout(() => { toast.style.display = "none"; }, 3000);
+    }
+
+    function setUserUI(user) {
+      const label = document.getElementById("current-user");
+      const dot = document.getElementById("user-dot");
+      const creditsSpan = document.getElementById("credits-count");
+      const trialBadge = document.getElementById("trial-badge");
+      const userPanel = document.getElementById("user-panel");
+      const googleWrap = document.getElementById("google-login-wrapper");
+
+      if (user) {
+        label.textContent = user.email;
+        dot.classList.add("online");
+        creditsSpan.textContent = user.credits;
+        trialBadge.textContent = user.has_used_trial ? "Trial used" : "Trial available";
+        userPanel.style.display = "flex";
+        googleWrap.style.display = "none";   // hide Google button after login
+      } else {
+        label.textContent = "Not signed in";
+        dot.classList.remove("online");
+        creditsSpan.textContent = "0";
+        trialBadge.textContent = "Sign in for trial";
+        userPanel.style.display = "none";
+        googleWrap.style.display = "flex";   // show Google button if logged out
+      }
+    }
+
+    async function refreshMe() {
+      if (!accessToken) {
+        setUserUI(null);
+        return;
+      }
+      try {
+        const res = await fetch(API_BASE + "/auth/me", {
+          headers: { "Authorization": "Bearer " + accessToken }
+        });
+        if (!res.ok) {
+          setUserUI(null);
+          return;
+        }
+        const data = await res.json();
+        currentUser = data;
+        setUserUI(data);
+      } catch {
+        setUserUI(null);
+      }
+    }
+
+    function toggleTheme() {
+      const root = document.documentElement;
+      if (root.dataset.theme === "light") {
+        root.dataset.theme = "dark";
+        localStorage.setItem("tt-theme", "dark");
+      } else {
+        root.dataset.theme = "light";
+        localStorage.setItem("tt-theme", "light");
+      }
+    }
+
+    function updateWeightsLabel() {
+      document.getElementById("fac-weight-label").innerText =
+        document.getElementById("fac-weight").value;
+      document.getElementById("free-weight-label").innerText =
+        document.getElementById("free-weight").value;
+      document.getElementById("time-weight-label").innerText =
+        document.getElementById("time-weight").value;
+    }
+
+        // Google login callback
+    async function handleGoogleCredential(response) {
+      const id_token = response.credential;
+      const device_id = getDeviceId();
+      try {
+        const res = await fetch(API_BASE + "/auth/google", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id_token, device_id })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.detail || "Google login failed", "error");
+          return;
+        }
+        accessToken = data.access_token;
+        localStorage.setItem("tt-token", accessToken);
+        showToast("Signed in with Google", "success");
+        await refreshMe();
+      } catch (e) {
+        showToast("Network error: " + e.message, "error");
+      }
+    }
+    window.handleGoogleCredential = handleGoogleCredential;
+
+
+    function logout() {
+      accessToken = null;
+      currentUser = null;
+      localStorage.removeItem("tt-token");
+      setUserUI(null);
+      showToast("Logged out", "success");
+    }
+
+        async function loadCourses() {
+      const rawText = document.getElementById("raw-text").value;
+      if (!rawText.trim()) {
+        showToast("Paste timetable text first", "error");
+        return;
+      }
+      setLoading(true, "Scanning courses...");
+      try {
+        const res = await fetch(API_BASE + "/courses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ raw_text: rawText })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast("Failed to parse courses", "error");
+          return;
+        }
+        renderCourses(data);
+        showToast("Courses loaded", "success");
+      } catch (e) {
+        showToast("Network error: " + e.message, "error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+
+    function renderCourses(courses) {
+      const container = document.getElementById("courses-container");
+      container.innerHTML = "";
+      if (!courses.length) {
+        container.innerHTML = "<p class='small'>No courses detected. Check your timetable text format.</p>";
+        return;
+      }
+      courses.forEach((course) => {
+        const div = document.createElement("div");
+        div.className = "course-item";
+        const checkboxId = "course-" + course.course_name.replace(/\s+/g, "-");
+
+        const facultyBadges = course.sections.map(s =>
+          `<span class="badge"><span class="badge-dot"></span>${s.faculty_name}</span>`
+        ).join(" ");
+
+        div.innerHTML = `
+          <label>
+            <input type="checkbox" id="${checkboxId}" data-course-name="${course.course_name}">
+            <strong>${course.course_name}</strong>
+          </label>
+          <div class="small" style="margin-top:4px;">${facultyBadges}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function getSelectedCourses() {
+      const container = document.getElementById("courses-container");
+      const inputs = container.querySelectorAll("input[type=checkbox]");
+      const selected = [];
+      inputs.forEach(inp => {
+        if (inp.checked) {
+          selected.push(inp.getAttribute("data-course-name"));
+        }
+      });
+      return selected;
+    }
+
+        async function generateTimetables() {
+      if (!accessToken) {
+        showToast("Sign in with Google first", "error");
+        return;
+      }
+      const rawText = document.getElementById("raw-text").value;
+      if (!rawText.trim()) {
+        showToast("Paste timetable text first", "error");
+        return;
+      }
+      const chosenCourses = getSelectedCourses();
+      if (!chosenCourses.length) {
+        showToast("Select at least one course", "error");
+        return;
+      }
+
+      const preferredFaculty = document.getElementById("preferredFaculty").value
+        .split(",").map(v => v.trim()).filter(v => v);
+      const avoidFaculty = document.getElementById("avoidFaculty").value
+        .split(",").map(v => v.trim()).filter(v => v);
+
+      const prefs = {
+        dislike_early: document.getElementById("avoidP1").checked,
+        dislike_midmorning: document.getElementById("avoidP2").checked,
+        dislike_afternoon: document.getElementById("avoidP3").checked,
+        dislike_evening: document.getElementById("avoidP4").checked,
+        prefer_weekend_off: document.getElementById("prefer-weekend-off").checked,
+        preferred_faculty: preferredFaculty,
+        avoid_faculty: avoidFaculty,
+        faculty_weight: parseFloat(document.getElementById("fac-weight").value),
+        free_days_weight: parseFloat(document.getElementById("free-weight").value),
+        timing_weight: parseFloat(document.getElementById("time-weight").value)
+      };
+
+      const top_k = parseInt(document.getElementById("top-k").value) || 5;
+
+      setLoading(true, "Generating best timetable options...");
+      try {
+        const res = await fetch(API_BASE + "/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + accessToken
+          },
+          body: JSON.stringify({
+            raw_text: rawText,
+            chosen_courses: chosenCourses,
+            preferences: prefs,
+            top_k: top_k
+          })
+        });
+        const data = await res.json();
+        if (res.status === 402) {
+          showToast(data.detail || "No credits. Please buy a credit.", "error");
+          await refreshMe();
+          return;
+        }
+        if (!res.ok) {
+          showToast("Failed to generate timetables", "error");
+          return;
+        }
+        lastResults = data;
+        renderResults(data);
+        await refreshMe();
+        if (data.length === 0) {
+          showToast("No valid combinations (clashes). Try fewer courses.", "error");
+        } else {
+          showToast("Generated " + data.length + " timetable option(s).", "success");
+        }
+      } catch (e) {
+        showToast("Network error: " + e.message, "error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+
+    function renderResults(results) {
+      const container = document.getElementById("results");
+      container.innerHTML = "";
+      if (!results.length) {
+        container.innerHTML = "<p class='small'>No valid timetables.</p>";
+        return;
+      }
+
+      results.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.className = "result-card";
+        div.dataset.index = index;
+
+        let rows = "";
+
+        DAYS.forEach(day => {
+          const p1 = item.grid[day]["P1"] || [];
+          const p2 = item.grid[day]["P2"] || [];
+          const p3 = item.grid[day]["P3"] || [];
+          const p4 = item.grid[day]["P4"] || [];
+
+          function cell(entries) {
+            if (!entries.length) return "";
+            return entries.map(e => `
+              <strong>${e.course}</strong><br>
+              <span class="small">${e.faculty}</span><br>
+              <span class="small">${e.section}</span>
+            `).join("<hr style='border:none;border-top:1px dashed rgba(148,163,184,0.6);margin:4px 0;'>");
+          }
+
+          const c1 = p1.length > 1 ? "conflict" : "";
+          const c2 = p2.length > 1 ? "conflict" : "";
+          const c3 = p3.length > 1 ? "conflict" : "";
+          const c4 = p4.length > 1 ? "conflict" : "";
+
+          rows += `
+            <tr>
+              <td><strong>${day}</strong></td>
+              <td class="${c1}">${cell(p1)}</td>
+              <td class="${c2}">${cell(p2)}</td>
+              <td class="${c3}">${cell(p3)}</td>
+              <td class="${c4}">${cell(p4)}</td>
+            </tr>
+          `;
+        });
+
+        div.innerHTML = `
+          <div class="result-header">
+            <div>Option #${index + 1}</div>
+            <div class="row" style="gap:6px; align-items:center;">
+              <button class="secondary" onclick="saveFavorite(${index})">⭐ Save</button>
+              <div class="score-pill">Score: ${item.score.toFixed(3)}</div>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>8–10</th>
+                <th>10–12</th>
+                <th>1–3</th>
+                <th>3–5</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        `;
+        container.appendChild(div);
+      });
+
+      renderFavorites();
+    }
+
+    function highlightBestOption() {
+      const container = document.getElementById("results");
+      const cards = container.querySelectorAll(".result-card");
+      if (!cards.length) {
+        showToast("Generate timetables first", "error");
+        return;
+      }
+      cards.forEach(c => c.classList.remove("best-option"));
+      const best = cards[0];
+      best.classList.add("best-option");
+      best.scrollIntoView({ behavior: "smooth", block: "center" });
+      showToast("Best option highlighted", "success");
+    }
+
+    function saveFavorite(index) {
+      if (!lastResults.length) {
+        showToast("Generate timetables first", "error");
+        return;
+      }
+      const favs = JSON.parse(localStorage.getItem("tt-favorites") || "[]");
+      const item = lastResults[index];
+      favs.push({
+        savedAt: new Date().toISOString(),
+        score: item.score,
+        grid: item.grid
+      });
+      localStorage.setItem("tt-favorites", JSON.stringify(favs));
+      showToast("Saved to favourites", "success");
+      renderFavorites();
+    }
+
+    function renderFavorites() {
+      const list = document.getElementById("favorites-list");
+      const favs = JSON.parse(localStorage.getItem("tt-favorites") || "[]");
+      if (!favs.length) {
+        list.innerHTML = "<span>No favourites yet.</span>";
+        return;
+      }
+      list.innerHTML = "";
+      favs.slice().reverse().forEach((f, i) => {
+        const el = document.createElement("div");
+        el.className = "favorite-item";
+        el.innerHTML = `
+          <span>#${favs.length - i} · Score ${f.score.toFixed(3)}</span>
+          <button class="secondary" style="padding:2px 6px;font-size:10px;" onclick="deleteFavorite(${favs.length - i - 1})">Remove</button>
+        `;
+        list.appendChild(el);
+      });
+    }
+
+    function deleteFavorite(index) {
+      const favs = JSON.parse(localStorage.getItem("tt-favorites") || "[]");
+      if (index < 0 || index >= favs.length) return;
+      favs.splice(index, 1);
+      localStorage.setItem("tt-favorites", JSON.stringify(favs));
+      renderFavorites();
+      showToast("Favourite removed", "success");
+    }
+
+        async function submitReview() {
+      if (!accessToken) {
+        showToast("Sign in with Google to submit reviews", "error");
+        return;
+      }
+      const faculty_name = document.getElementById("review-faculty").value.trim();
+      const rating = parseFloat(document.getElementById("review-rating").value);
+      const comment = document.getElementById("review-comment").value.trim();
+      const course_code = document.getElementById("review-course-code").value.trim() || null;
+      const course_title = document.getElementById("review-course-title").value.trim() || null;
+
+      if (!faculty_name || isNaN(rating)) {
+        showToast("Enter faculty name and rating", "error");
+        return;
+      }
+      try {
+        const res = await fetch(API_BASE + "/review", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + accessToken
+          },
+          body: JSON.stringify({ faculty_name, rating, comment, course_code, course_title })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.detail || "Error saving review", "error");
+          return;
+        }
+        const msg = `Saved anonymously. ${data.faculty_name} avg rating: ${data.avg_rating.toFixed(2)}`;
+        document.getElementById("review-result").innerText = msg;
+        showToast("Review saved (anonymous)", "success");
+      } catch (e) {
+        showToast("Network error: " + e.message, "error");
+      }
+    }
+
+
+    function renderStarRow(star, count, total) {
+      const percent = total ? Math.round((count / total) * 100) : 0;
+      return `
+        <div class="breakdown-row">
+          <span>${star}★</span>
+          <div class="breakdown-bar">
+            <div class="breakdown-bar-inner" style="width:${percent}%;"></div>
+          </div>
+          <span>${percent}%</span>
+        </div>
+      `;
+    }
+
+    async function loadFacultySummary() {
+      const name = document.getElementById("review-faculty").value.trim();
+      if (!name) {
+        showToast("Enter faculty name to view insights", "error");
+        return;
+      }
+      try {
+        const res = await fetch(API_BASE + "/faculty/" + encodeURIComponent(name) + "/reviews");
+        const data = await res.json();
+        if (!res.ok) {
+          showToast("Error loading faculty insights", "error");
+          return;
+        }
+        const panel = document.getElementById("faculty-panel");
+        const summary = document.getElementById("faculty-summary-text");
+        const list = document.getElementById("faculty-reviews-list");
+        const breakdownDiv = document.getElementById("faculty-breakdown");
+        const title = document.getElementById("faculty-name-title");
+
+        title.textContent = `${data.faculty_name} · Student reviews`;
+        summary.innerHTML = `
+          <span class="stars">${"★".repeat(Math.round(data.avg_rating))}${"☆".repeat(5 - Math.round(data.avg_rating))}</span>
+          <strong>${data.avg_rating.toFixed(1)} out of 5</strong> · ${data.count} rating(s)<br>
+          ${data.summary}
+        `;
+
+        breakdownDiv.innerHTML = "";
+        for (let star = 5; star >= 1; star--) {
+          breakdownDiv.innerHTML += renderStarRow(
+            star,
+            data.breakdown[String(star)] || data.breakdown[star] || 0,
+            data.count
+          );
+        }
+
+            let meta = `${r.rating.toFixed(1)}/5`;
+            const pieces = [];
+            if (r.course_code) pieces.push(r.course_code);
+            if (r.course_title) pieces.push(r.course_title);
+            if (pieces.length) {
+              meta += " · " + pieces.join(" – ");
+            }
+            const date = new Date(r.created_at);
+            p.innerHTML = `<strong>${meta}</strong> · ${date.toLocaleDateString()}<br>${r.comment || "<i>No text</i>"}`;
+
+        panel.style.display = "block";
+      } catch (e) {
+        showToast("Network error: " + e.message, "error");
+      }
+    }
+
+    function downloadPDF() {
+      const content = document.getElementById("results").innerHTML;
+      if (!content.trim()) {
+        showToast("Generate a timetable first", "error");
+        return;
+      }
+      const w = window.open("", "_blank");
+      w.document.write(`
+        <html>
+          <head>
+            <title>Timetable</title>
+            <style>
+              body { font-family: system-ui, sans-serif; padding: 16px; }
+              table { border-collapse: collapse; width: 100%; font-size: 12px; }
+              th, td { border: 1px solid #444; padding: 4px 6px; vertical-align: top; }
+              th { background: #f3f4f6; }
+            </style>
+          </head>
+          <body>${content}</body>
+        </html>
+      `);
+      w.document.close();
+      w.focus();
+      w.print();
+      w.close();
+    }
+
+    function exportImage() {
+      const node = document.getElementById("results");
+      if (!node.innerHTML.trim()) {
+        showToast("Generate a timetable first", "error");
+        return;
+      }
+      html2canvas(node).then(canvas => {
+        const link = document.createElement("a");
+        link.download = "timetable.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      }).catch(err => {
+        showToast("Could not export image: " + err.message, "error");
+      });
+    }
+
+    async function buyCredit() {
+      if (!accessToken) {
+        showToast("Sign in with Google first", "error");
+        return;
+      }
+      try {
+        const res = await fetch(API_BASE + "/payments/create-order", {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + accessToken }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast("Error creating payment order", "error");
+          return;
+        }
+
+        const options = {
+          key: data.key_id,
+          amount: data.amount,
+          currency: data.currency,
+          name: "Timetable Predictor",
+          description: "1 credit (1 generate)",
+          order_id: data.order_id,
+          handler: async function (response) {
+            try {
+              const verifyRes = await fetch(API_BASE + "/payments/verify", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer " + accessToken
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature
+                })
+              });
+              const verifyData = await verifyRes.json();
+              if (!verifyRes.ok) {
+                showToast(verifyData.detail || "Payment verification failed", "error");
+                return;
+              }
+              showToast("Payment successful. 1 credit added.", "success");
+              await refreshMe();
+            } catch (e) {
+              showToast("Verification error: " + e.message, "error");
+            }
+          },
+          theme: {
+            color: "#6366f1"
+          }
+        };
+        const rzp = new Razorpay(options);
+        rzp.open();
+      } catch (e) {
+        showToast("Network error: " + e.message, "error");
+      }
+    }
+
+    (function init() {
+      const savedTheme = localStorage.getItem("tt-theme") || "dark";
+      document.documentElement.dataset.theme = savedTheme;
+      updateWeightsLabel();
+      renderFavorites();
+      const storedToken = localStorage.getItem("tt-token");
+      if (storedToken) {
+        accessToken = storedToken;
+        refreshMe();
+      } else {
+        setUserUI(null);
+      }
+    })();
+  </script>
+</body>
+</html>
