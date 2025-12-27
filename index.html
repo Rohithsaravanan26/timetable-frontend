@@ -1320,55 +1320,105 @@ Tuesday: 13:00 - 14:00 14:00 - 15:00
     }
 
     async function loadFacultySummary() {
-      const name = document.getElementById("review-faculty").value.trim();
-      if (!name) {
-        showToast("Enter faculty name to view insights", "error");
-        return;
-      }
-      try {
-        const res = await fetch(API_BASE + "/faculty/" + encodeURIComponent(name) + "/reviews");
-        const data = await res.json();
-        if (!res.ok) {
-          showToast("Error loading faculty insights", "error");
-          return;
-        }
-        const panel = document.getElementById("faculty-panel");
-        const summary = document.getElementById("faculty-summary-text");
-        const list = document.getElementById("faculty-reviews-list");
-        const breakdownDiv = document.getElementById("faculty-breakdown");
-        const title = document.getElementById("faculty-name-title");
+  const name = document.getElementById("review-faculty").value.trim();
 
-        title.textContent = `${data.faculty_name} · Student reviews`;
-        summary.innerHTML = `
-          <span class="stars">${"★".repeat(Math.round(data.avg_rating))}${"☆".repeat(5 - Math.round(data.avg_rating))}</span>
-          <strong>${data.avg_rating.toFixed(1)} out of 5</strong> · ${data.count} rating(s)<br>
-          ${data.summary}
+  if (!name) {
+    showToast("Enter faculty name to view insights", "error");
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      API_BASE + "/faculty/" + encodeURIComponent(name) + "/reviews"
+    );
+
+    if (!res.ok) {
+      throw new Error("Server error (" + res.status + ")");
+    }
+
+    const data = await res.json();
+
+    // Elements
+    const panel = document.getElementById("faculty-panel");
+    const title = document.getElementById("faculty-name-title");
+    const summary = document.getElementById("faculty-summary-text");
+    const breakdownDiv = document.getElementById("faculty-breakdown");
+    const list = document.getElementById("faculty-reviews-list");
+
+    // Title
+    title.textContent = `${data.faculty_name} · Student reviews`;
+
+    // Summary
+    summary.innerHTML = `
+      <span class="stars">
+        ${"★".repeat(Math.round(data.avg_rating))}
+        ${"☆".repeat(5 - Math.round(data.avg_rating))}
+      </span>
+      <strong>${data.avg_rating.toFixed(1)} out of 5</strong>
+      · ${data.count} rating(s)<br>
+      ${data.summary || ""}
+    `;
+
+    // Rating breakdown
+    breakdownDiv.innerHTML = "";
+    for (let star = 5; star >= 1; star--) {
+      const count =
+        (data.breakdown && (data.breakdown[String(star)] || data.breakdown[star])) || 0;
+      const percent = data.count ? Math.round((count / data.count) * 100) : 0;
+
+      breakdownDiv.innerHTML += `
+        <div class="breakdown-row">
+          <span>${star}★</span>
+          <div class="breakdown-bar">
+            <div class="breakdown-bar-inner" style="width:${percent}%;"></div>
+          </div>
+          <span>${percent}%</span>
+        </div>
+      `;
+    }
+
+    // Reviews list
+    list.innerHTML = "";
+
+    if (!data.reviews || data.reviews.length === 0) {
+      list.innerHTML = "<p class='small'><i>No detailed reviews yet.</i></p>";
+    } else {
+      data.reviews.forEach(r => {
+        const p = document.createElement("p");
+        p.className = "small";
+
+        let meta = `${r.rating.toFixed(1)}/5`;
+        const parts = [];
+
+        if (r.course_code) parts.push(r.course_code);
+        if (r.course_title) parts.push(r.course_title);
+
+        if (parts.length) {
+          meta += " · " + parts.join(" – ");
+        }
+
+        const date = r.created_at
+          ? new Date(r.created_at).toLocaleDateString()
+          : "";
+
+        p.innerHTML = `
+          <strong>${meta}</strong>
+          ${date ? " · " + date : ""}<br>
+          ${r.comment || "<i>No text</i>"}
         `;
 
-        breakdownDiv.innerHTML = "";
-        for (let star = 5; star >= 1; star--) {
-          breakdownDiv.innerHTML += renderStarRow(
-            star,
-            data.breakdown[String(star)] || data.breakdown[star] || 0,
-            data.count
-          );
-        }
-
-            let meta = `${r.rating.toFixed(1)}/5`;
-            const pieces = [];
-            if (r.course_code) pieces.push(r.course_code);
-            if (r.course_title) pieces.push(r.course_title);
-            if (pieces.length) {
-              meta += " · " + pieces.join(" – ");
-            }
-            const date = new Date(r.created_at);
-            p.innerHTML = `<strong>${meta}</strong> · ${date.toLocaleDateString()}<br>${r.comment || "<i>No text</i>"}`;
-
-        panel.style.display = "block";
-      } catch (e) {
-        showToast("Network error: " + e.message, "error");
-      }
+        list.appendChild(p);
+      });
     }
+
+    panel.style.display = "block";
+    showToast("Faculty insights loaded", "success");
+
+  } catch (error) {
+    console.error(error);
+    showToast("Unable to load faculty insights. Please try again.", "error");
+  }
+}
 
     function downloadPDF() {
       const content = document.getElementById("results").innerHTML;
@@ -1530,6 +1580,7 @@ Tuesday: 13:00 - 14:00 14:00 - 15:00
 
 </body>
 </html>
+
 
 
 
