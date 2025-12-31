@@ -636,6 +636,28 @@ footer a + a::before {
     margin: 0 6px;
   }
 }
+.faculty-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(15,23,42,0.98);
+  border: 1px solid rgba(148,163,184,0.6);
+  border-radius: 10px;
+  max-height: 160px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.faculty-dropdown div {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.faculty-dropdown div:hover {
+  background: rgba(99,102,241,0.18);
+}
 
   </style>
 </head>
@@ -853,7 +875,16 @@ Tuesday: 13:00 - 14:00 14:00 - 15:00
         <p class="small" style="margin:0 0 4px;">Share honest feedback. We never show who posted the review.</p>
                 <div class="row">
           <div class="col">
-            <input id="review-faculty" type="text" placeholder="Exact faculty name (e.g. NIMISHA JOHN)" />
+            <div style="position:relative;">
+  <input
+    id="review-faculty"
+    type="text"
+    placeholder="Start typing faculty name…"
+    autocomplete="off"
+  />
+  <div id="faculty-suggestions" class="faculty-dropdown"></div>
+</div>
+
           </div>
           <div style="max-width:110px;" class="col">
             <input id="review-rating" type="number" min="1" max="5" step="0.5" value="5" />
@@ -1317,6 +1348,51 @@ Tuesday: 13:00 - 14:00 14:00 - 15:00
       renderFavorites();
       showToast("Favourite removed", "success");
     }
+    const facultyInput = document.getElementById("review-faculty");
+const facultyDropdown = document.getElementById("faculty-suggestions");
+
+let selectedFacultyId = null;
+
+facultyInput.addEventListener("input", async () => {
+  const q = facultyInput.value.trim();
+  facultyDropdown.innerHTML = "";
+  selectedFacultyId = null;
+
+  if (q.length < 2) return;
+
+  try {
+    const res = await fetch(
+      API_BASE + "/faculty/search?q=" + encodeURIComponent(q)
+    );
+    const data = await res.json();
+
+    data.forEach(f => {
+      const div = document.createElement("div");
+      div.textContent = f.name;
+
+      div.onclick = async () => {
+        facultyInput.value = f.name;
+        selectedFacultyId = f.id;
+        facultyDropdown.innerHTML = "";
+
+        // Auto-fill course fields
+        const r = await fetch(API_BASE + "/faculty/" + f.id + "/courses");
+        const courses = await r.json();
+
+        if (courses.length) {
+          document.getElementById("review-course-code").value =
+            courses[0].course_code || "";
+          document.getElementById("review-course-title").value =
+            courses[0].course_title || "";
+        }
+      };
+
+      facultyDropdown.appendChild(div);
+    });
+  } catch (e) {
+    console.error(e);
+  }
+});
 
         async function submitReview() {
       if (!accessToken) {
@@ -1630,6 +1706,7 @@ Tuesday: 13:00 - 14:00 14:00 - 15:00
 
 </body>
 </html>
+
 
 
 
