@@ -749,7 +749,7 @@ Tuesday: 13:00 - 14:00 14:00 - 15:00
           <span class="badge-pro">Pro · Uses credit</span>
         </div>
         <p class="small" style="margin:0 0 6px;">
-          First generation is free (trial). Afterwards, each generate uses 1 credit (₹50).
+          First generation is free (trial). Afterwards, each generate uses 2 credit (₹50).
         </p>
 
         <div class="row">
@@ -841,7 +841,7 @@ Tuesday: 13:00 - 14:00 14:00 - 15:00
           <button class="secondary" onclick="highlightBestOption()">AI pick best</button>
         </div>
         <div class="row">
-          <button class="secondary" onclick="buyCredit()">Get 3 credit for ₹50</button>
+          <button class="secondary" onclick="buyCredit()">Get 2 credit for ₹50</button>
         </div>
       </div>
 
@@ -1631,7 +1631,7 @@ facultyInput.addEventListener("input", async () => {
                 showToast(verifyData.detail || "Payment verification failed", "error");
                 return;
               }
-              showToast("Payment successful. 1 credit added.", "success");
+              showToast("Payment successful. 2 credit added.", "success");
               await refreshMe();
             } catch (e) {
               showToast("Verification error: " + e.message, "error");
@@ -1706,6 +1706,7 @@ facultyInput.addEventListener("input", async () => {
 
 </body>
 </html>
+
 
 
 
